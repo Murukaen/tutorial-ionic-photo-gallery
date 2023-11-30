@@ -12,6 +12,36 @@ export class PhotoService {
 
   constructor() { }
 
+  private convertBlobToBase64 = (blob: Blob) => new Promise((resolve, reject) => {
+    const reader = new FileReader();
+    reader.onerror = reject;
+    reader.onload = () => {
+      resolve(reader.result);
+    };
+    reader.readAsDataURL(blob);
+  });
+
+  private async readAsBase64(photo: Photo) {
+    const response = await fetch(photo.webPath!);
+    const blob = await response.blob();
+
+    return await this.convertBlobToBase64(blob) as string;
+  }
+
+  private async savePicture(photo: Photo) {
+    const base64Data = await this.readAsBase64(photo);
+    const fileName = Date.now() + ".jpeg";
+    const savedFile = await Filesystem.writeFile({
+      path: fileName,
+      data: base64Data,
+      directory: Directory.Data
+    });
+    return {
+      filepath: fileName,
+      webviewPath: photo.webPath!
+    };
+  }
+
   public async addNewToGallery() {
     // Take a photo
     const capturedPhoto = await Camera.getPhoto({
@@ -20,10 +50,8 @@ export class PhotoService {
       quality: 100
     });
 
-    this.photos.unshift({
-      filepath: "TODO",
-      webviewPath: capturedPhoto.webPath!
-    });
+    const savedImageFile = await this.savePicture(capturedPhoto);
+    this.photos.unshift(savedImageFile);
   }
 }
 
